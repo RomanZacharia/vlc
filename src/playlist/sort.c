@@ -28,6 +28,9 @@
 
 #include <vlc_common.h>
 #include <vlc_rand.h>
+#include <vlc_fs.h>
+#include <vlc_url.h>
+#include <sys/stat.h>
 #define  VLC_INTERNAL_PLAYLIST_SORT_FUNCTIONS
 #include "vlc_playlist.h"
 #include "playlist_internal.h"
@@ -179,6 +182,91 @@ static int recursiveNodeSort( playlist_t *p_playlist, playlist_item_t *p_node,
 }
 
 /**
+ * Collect all leaf items (non-node items) from a node recursively
+ * This function must be entered with the playlist lock !
+ */
+static void collectLeafItems( playlist_item_t *p_node, playlist_item_t ***ppp_items, int *pi_count )
+{
+    int i;
+    for( i = 0; i < p_node->i_children; i++ )
+    {
+        playlist_item_t *p_child = p_node->pp_children[i];
+        if( p_child->i_children == -1 )
+        {
+            /* It's a leaf item, add it */
+            *ppp_items = realloc( *ppp_items, (*pi_count + 1) * sizeof(playlist_item_t*) );
+            (*ppp_items)[*pi_count] = p_child;
+            (*pi_count)++;
+        }
+        else
+        {
+            /* It's a node, recurse */
+            collectLeafItems( p_child, ppp_items, pi_count );
+        }
+    }
+}
+
+/**
+ * Sort a node as a flat list (for file size sorting)
+ * This function must be entered with the playlist lock !
+ */
+static int flatNodeSort( playlist_t *p_playlist, playlist_item_t *p_node,
+                         sortfn_t p_sortfn )
+{
+    playlist_item_t **pp_items = NULL;
+    int i_count = 0;
+    int i;
+
+    /* Collect all leaf items (hold references to them) */
+    collectLeafItems( p_node, &pp_items, &i_count );
+
+    if( i_count == 0 )
+    {
+        free( pp_items );
+        /* Still need to delete any nodes that might be children */
+        while( p_node->i_children > 0 )
+        {
+            playlist_item_t *p_child = p_node->pp_children[0];
+            playlist_NodeDelete( p_playlist, p_child );
+        }
+        return VLC_SUCCESS;
+    }
+
+    /* Sort the collected items */
+    playlist_ItemArraySort( i_count, pp_items, p_sortfn );
+
+    /* Remove all children from the node, deleting nodes but keeping leaf items */
+    while( p_node->i_children > 0 )
+    {
+        playlist_item_t *p_child = p_node->pp_children[0];
+        /* If it's a node, delete it (which will also delete its children) */
+        if( p_child->i_children != -1 )
+        {
+            playlist_NodeDelete( p_playlist, p_child );
+        }
+        else
+        {
+            /* It's a leaf item, just remove it from parent (we'll re-add it) */
+            TAB_REMOVE( p_node->i_children, p_node->pp_children, p_child );
+            p_child->p_parent = NULL;
+        }
+    }
+
+    /* Add sorted items back as direct children */
+    for( i = 0; i < i_count; i++ )
+    {
+        /* Only insert if item doesn't already have a parent */
+        if( pp_items[i]->p_parent == NULL )
+        {
+            playlist_NodeInsert( p_node, pp_items[i], PLAYLIST_END );
+        }
+    }
+
+    free( pp_items );
+    return VLC_SUCCESS;
+}
+
+/**
  * Sort a node recursively.
  *
  * This function must be entered with the playlist lock !
@@ -196,6 +284,12 @@ int playlist_RecursiveNodeSort( playlist_t *p_playlist, playlist_item_t *p_node,
 
     /* Ask the playlist to reset as we are changing the order */
     pl_priv(p_playlist)->b_reset_currently_playing = true;
+
+    /* For file size sorting, treat as flat list */
+    if( i_mode == SORT_FILE_SIZE )
+    {
+        return flatNodeSort( p_playlist, p_node, find_sorting_fn(i_mode,i_type) );
+    }
 
     /* Do the real job recursively */
     return recursiveNodeSort(p_playlist,p_node,find_sorting_fn(i_mode,i_type));
@@ -345,6 +439,60 @@ SORTFN( SORT_URI, first, second )
     free( psz_first );
     free( psz_second );
     return i_ret;
+}
+
+SORTFN( SORT_FILE_SIZE, first, second )
+{
+    int64_t i_size_first = 0;
+    int64_t i_size_second = 0;
+    char *psz_first = input_item_GetURI( first->p_input );
+    char *psz_second = input_item_GetURI( second->p_input );
+
+    /* Nodes go first */
+    if( first->i_children == -1 && second->i_children >= 0 )
+        i_size_first = 1;
+    else if( first->i_children >= 0 && second->i_children == -1 )
+        i_size_second = 1;
+    /* Both are nodes, sort by name */
+    else if( first->i_children >= 0 && second->i_children >= 0 )
+    {
+        free( psz_first );
+        free( psz_second );
+        return meta_strcasecmp_title( first, second );
+    }
+    /* Both are items, get file sizes */
+    else if( psz_first && psz_second )
+    {
+        /* Convert URIs to file paths if needed */
+        char *psz_path_first = vlc_uri2path( psz_first );
+        char *psz_path_second = vlc_uri2path( psz_second );
+        
+        /* If URI conversion failed, try using URI directly */
+        if( !psz_path_first )
+            psz_path_first = strdup( psz_first );
+        if( !psz_path_second )
+            psz_path_second = strdup( psz_second );
+        
+        /* Try to get file size from file system */
+        struct stat st_first, st_second;
+        if( psz_path_first && vlc_stat( psz_path_first, &st_first ) == 0 && S_ISREG( st_first.st_mode ) )
+            i_size_first = st_first.st_size;
+        if( psz_path_second && vlc_stat( psz_path_second, &st_second ) == 0 && S_ISREG( st_second.st_mode ) )
+            i_size_second = st_second.st_size;
+            
+        free( psz_path_first );
+        free( psz_path_second );
+    }
+
+    free( psz_first );
+    free( psz_second );
+
+    if( i_size_first < i_size_second )
+        return -1;
+    else if( i_size_first > i_size_second )
+        return 1;
+    else
+        return 0;
 }
 
 #undef  SORTFN
