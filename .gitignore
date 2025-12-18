@@ -52,4 +52,50 @@ include/vlc/libvlc_version.h
 build*
 contrib-*
 install-*
+macos-install/
+bin/
+Frameworks/
+contrib/python-venv/
+
+# Generated parser files
+modules/codec/webvtt/CSSGrammar.c
+modules/codec/webvtt/CSSGrammar.h
+modules/codec/webvtt/CSSLexer.c
+modules/codec/webvtt/libwebvtt_plugin_la-CSSLexer.c
+modules/demux/json/grammar.c
+modules/demux/json/grammar.h
+modules/demux/json/lexicon.c
+
+# Compiled UI files
+modules/gui/macosx/UI/*.nib/
+modules/gui/macosx/UI/**/*.nib/
+modules/gui/macosx/Resources/Assets.car
+
+# Generated protobuf files
+modules/stream_out/chromecast/cast_channel.pb.cc
+modules/stream_out/chromecast/cast_channel.pb.h
+modules/stream_out/chromecast/*/
+
+# Build artifacts
+modules/demux/json/.deps/
+modules/demux/json/.libs/
+modules/demux/json/*.lo
+modules/demux/json/grammar.c
+modules/demux/json/grammar.h
+modules/demux/json/lexicon.c
+modules/demux/json/*.lo
+vlc-*-release/
+Frameworks/
+modules/vlc_modules_list
+test/vlc-window
+
+# Release packages
+vlc-*-release.zip
+vlc-*-sdk-*.tar.gz
+vlc-*.zip
+vlc-*.tar.gz
+
+# Temporary autotools config files
+extras/tools/config.guess-*
+extras/tools/config.sub-*
 
