@@ -299,8 +299,10 @@ if [ "$PACKAGETYPE" = "u" ]; then
 
     # Workaround for breakpad symbol parsing:
     # Symbols must be uploaded for libvlc(core).dylib, not libvlc(core).x.dylib
-    (cd VLC-debug.app/Contents/MacOS/lib/ && rm libvlccore.dylib && mv libvlccore.*.dylib libvlccore.dylib)
-    (cd VLC-debug.app/Contents/MacOS/lib/ && rm libvlc.dylib && mv libvlc.*.dylib libvlc.dylib)
+    if [ -d "VLC-debug.app/Contents/MacOS/lib/" ]; then
+        (cd VLC-debug.app/Contents/MacOS/lib/ && rm -f libvlccore.dylib && mv libvlccore.*.dylib libvlccore.dylib 2>/dev/null || true)
+        (cd VLC-debug.app/Contents/MacOS/lib/ && rm -f libvlc.dylib && mv libvlc.*.dylib libvlc.dylib 2>/dev/null || true)
+    fi
 
     find VLC.app/ -name "*.dylib" -exec strip -x {} \;
     find VLC.app/ -type f -name "VLC" -exec strip -x {} \;
