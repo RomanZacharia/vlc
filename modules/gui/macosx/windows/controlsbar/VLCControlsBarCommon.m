@@ -370,8 +370,12 @@
             break;
         }
         case NSEventTypeLeftMouseUp:
+        {
+            const float newPosition = [sender floatValue];
+            [_playerController setPositionPrecise:newPosition];
             _isTimeSliderBeingDragged = NO;
             break;
+        }
         default:
             return;
     }
