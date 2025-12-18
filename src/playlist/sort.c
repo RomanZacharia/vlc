@@ -285,8 +285,8 @@ int playlist_RecursiveNodeSort( playlist_t *p_playlist, playlist_item_t *p_node,
     /* Ask the playlist to reset as we are changing the order */
     pl_priv(p_playlist)->b_reset_currently_playing = true;
 
-    /* For file size sorting, treat as flat list */
-    if( i_mode == SORT_FILE_SIZE )
+    /* For file size and modified date sorting, treat as flat list */
+    if( i_mode == SORT_FILE_SIZE || i_mode == SORT_FILE_MODIFIED_DATE )
     {
         return flatNodeSort( p_playlist, p_node, find_sorting_fn(i_mode,i_type) );
     }
@@ -490,6 +490,60 @@ SORTFN( SORT_FILE_SIZE, first, second )
     if( i_size_first < i_size_second )
         return -1;
     else if( i_size_first > i_size_second )
+        return 1;
+    else
+        return 0;
+}
+
+SORTFN( SORT_FILE_MODIFIED_DATE, first, second )
+{
+    time_t time_first = 0;
+    time_t time_second = 0;
+    char *psz_first = input_item_GetURI( first->p_input );
+    char *psz_second = input_item_GetURI( second->p_input );
+
+    /* Nodes go first */
+    if( first->i_children == -1 && second->i_children >= 0 )
+        time_first = 1;
+    else if( first->i_children >= 0 && second->i_children == -1 )
+        time_second = 1;
+    /* Both are nodes, sort by name */
+    else if( first->i_children >= 0 && second->i_children >= 0 )
+    {
+        free( psz_first );
+        free( psz_second );
+        return meta_strcasecmp_title( first, second );
+    }
+    /* Both are items, get file modification times */
+    else if( psz_first && psz_second )
+    {
+        /* Convert URIs to file paths if needed */
+        char *psz_path_first = vlc_uri2path( psz_first );
+        char *psz_path_second = vlc_uri2path( psz_second );
+        
+        /* If URI conversion failed, try using URI directly */
+        if( !psz_path_first )
+            psz_path_first = strdup( psz_first );
+        if( !psz_path_second )
+            psz_path_second = strdup( psz_second );
+        
+        /* Try to get file modification time from file system */
+        struct stat st_first, st_second;
+        if( psz_path_first && vlc_stat( psz_path_first, &st_first ) == 0 && S_ISREG( st_first.st_mode ) )
+            time_first = st_first.st_mtime;
+        if( psz_path_second && vlc_stat( psz_path_second, &st_second ) == 0 && S_ISREG( st_second.st_mode ) )
+            time_second = st_second.st_mtime;
+            
+        free( psz_path_first );
+        free( psz_path_second );
+    }
+
+    free( psz_first );
+    free( psz_second );
+
+    if( time_first < time_second )
+        return -1;
+    else if( time_first > time_second )
         return 1;
     else
         return 0;

@@ -40,6 +40,7 @@
 #define LANGUAGE_COLUMN @"language"
 #define URI_COLUMN @"uri"
 #define FILESIZE_COLUMN @"file-size"
+#define FILEMODIFIED_COLUMN @"file-modified"
 
 typedef enum {
     ROOT_TYPE_PLAYLIST,

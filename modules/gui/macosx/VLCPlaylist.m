@@ -98,12 +98,13 @@
                                                 _NS("Language"),      LANGUAGE_COLUMN,
                                                 _NS("URI"),           URI_COLUMN,
                                                 _NS("File Size"),     FILESIZE_COLUMN,
+                                                _NS("Modified Date"), FILEMODIFIED_COLUMN,
                                                 nil];
         // this array also assigns tags (index) to type of menu item
         _menuOrderOfPlaylistTableColumns = [[NSArray alloc] initWithObjects: TRACKNUM_COLUMN, TITLE_COLUMN,
                                             ARTIST_COLUMN, DURATION_COLUMN, GENRE_COLUMN, ALBUM_COLUMN,
                                             DESCRIPTION_COLUMN, DATE_COLUMN, LANGUAGE_COLUMN, URI_COLUMN,
-                                            FILESIZE_COLUMN,nil];
+                                            FILESIZE_COLUMN, FILEMODIFIED_COLUMN, nil];
 
     }
     return self;

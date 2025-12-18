@@ -462,6 +462,8 @@ static int VolumeUpdated(vlc_object_t *p_this, const char *psz_var,
         i_column = SORT_URI;
     else if ([o_column isEqualToString:FILESIZE_COLUMN])
         i_column = SORT_FILE_SIZE;
+    else if ([o_column isEqualToString:FILEMODIFIED_COLUMN])
+        i_column = SORT_FILE_MODIFIED_DATE;
     else
         return;
 
@@ -589,6 +591,33 @@ static int VolumeUpdated(vlc_object_t *p_this, const char *psz_var,
             return @"";
 
         o_value = [VLCByteCountFormatter stringFromByteCount:[attributes fileSize] countStyle:NSByteCountFormatterCountStyleDecimal];
+
+    } else if ([o_identifier isEqualToString:FILEMODIFIED_COLUMN]) {
+        psz_value = input_item_GetURI(p_input);
+        if (!psz_value)
+            return @"";
+        NSURL *url = [NSURL URLWithString:toNSStr(psz_value)];
+        free(psz_value);
+        if (![url isFileURL])
+            return @"";
+
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        BOOL b_isDir;
+        if (![fileManager fileExistsAtPath:[url path] isDirectory:&b_isDir] || b_isDir)
+            return @"";
+
+        NSDictionary *attributes = [fileManager attributesOfItemAtPath:[url path] error:nil];
+        if (!attributes)
+            return @"";
+
+        NSDate *modifiedDate = [attributes fileModificationDate];
+        if (!modifiedDate)
+            return @"";
+
+        NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+        [dateFormatter setDateStyle:NSDateFormatterMediumStyle];
+        [dateFormatter setTimeStyle:NSDateFormatterShortStyle];
+        o_value = [dateFormatter stringFromDate:modifiedDate];
 
     }
 
