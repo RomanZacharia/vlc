@@ -21,6 +21,7 @@
  *****************************************************************************/
 
 #import "VLCMediaSource.h"
+#include <string.h>
 
 #import "extensions/NSString+Helpers.h"
 #import "library/VLCInputItem.h"
@@ -412,22 +413,67 @@ static const char *const myFoldersDescription = "My Folders";
     NSParameterAssert(directoryNode != NULL && directoryUrl != nil);
     
     // Safety check: ensure directoryNode is valid before proceeding
-    if (directoryNode == NULL || directoryNode->pp_children == NULL) {
+    // Check for obvious memory corruption (invalid pointers)
+    if (directoryNode == NULL) {
         return [NSError errorWithDomain:NSCocoaErrorDomain
                                     code:NSFileReadCorruptFileError
                                 userInfo:@{NSLocalizedDescriptionKey: @"Invalid directory node"}];
+    }
+    
+    // Validate the node structure before accessing its members
+    // Check if pp_children pointer looks valid (not obviously corrupted)
+    if (directoryNode->pp_children != NULL) {
+        // Additional validation: check if the pointer looks reasonable
+        // (not pointing to obviously invalid addresses like string data)
+        uintptr_t ptrValue = (uintptr_t)directoryNode->pp_children;
+        // Check if pointer is in a reasonable range (not too small, not too large)
+        if (ptrValue < 0x1000 || ptrValue > 0x7FFFFFFFFFFF) {
+            NSLog(@"Warning: Invalid pp_children pointer detected: %p", directoryNode->pp_children);
+            // Don't try to access it, just clear the count
+            directoryNode->i_children = 0;
+            directoryNode->pp_children = NULL;
+        }
     }
     
     if (self.willStartGeneratingChildNodesForNodeHandler) {
         self.willStartGeneratingChildNodesForNodeHandler(directoryNode);
     }
 
-    // Clear pre-existing child nodes
-    while (directoryNode->i_children > 0 && directoryNode->pp_children != NULL) {
-        input_item_node_t * const childNode = directoryNode->pp_children[0];
-        if (childNode == NULL) {
+    // Clear pre-existing child nodes with additional safety checks
+    while (directoryNode->i_children > 0) {
+        // Re-check pp_children is valid before each iteration
+        if (directoryNode->pp_children == NULL) {
+            directoryNode->i_children = 0;
             break;
         }
+        
+        input_item_node_t * const childNode = directoryNode->pp_children[0];
+        if (childNode == NULL) {
+            // Remove the NULL entry and continue
+            directoryNode->i_children--;
+            if (directoryNode->i_children > 0) {
+                // Shift remaining children
+                memmove(&directoryNode->pp_children[0], 
+                       &directoryNode->pp_children[1], 
+                       (directoryNode->i_children) * sizeof(input_item_node_t *));
+            }
+            continue;
+        }
+        
+        // Validate childNode pointer before using it
+        uintptr_t childPtrValue = (uintptr_t)childNode;
+        if (childPtrValue < 0x1000 || childPtrValue > 0x7FFFFFFFFFFF) {
+            NSLog(@"Warning: Invalid child node pointer detected: %p", childNode);
+            // Remove the invalid entry
+            directoryNode->i_children--;
+            if (directoryNode->i_children > 0) {
+                memmove(&directoryNode->pp_children[0], 
+                       &directoryNode->pp_children[1], 
+                       (directoryNode->i_children) * sizeof(input_item_node_t *));
+            }
+            continue;
+        }
+        
         input_item_node_RemoveNode(directoryNode, childNode);
         input_item_node_Delete(childNode);
     }
