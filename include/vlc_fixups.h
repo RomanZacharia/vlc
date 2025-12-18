@@ -760,6 +760,12 @@ static const struct in6_addr in6addr_any =
 #endif
 
 #ifndef HAVE_SINCOS
+# ifdef sincos
+#  undef sincos
+# endif
+# ifdef sincosf
+#  undef sincosf
+# endif
 void sincos(double, double *, double *);
 void sincosf(float, float *, float *);
 #endif

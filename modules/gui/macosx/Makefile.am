@@ -82,11 +82,11 @@ libmacosx_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(guidir)' \
 	-Wl,-framework,WebKit \
 	-Wl,-framework,QuickLook \
 	-Wl,-framework,QuickLookThumbnailing \
-	-Wl,-weak_framework,MediaPlayer
+	-Wl,-weak_framework,MediaPlayer \
+	-Wl,-framework,Metal \
+	-Wl,-framework,MetalKit
 
 if ENABLE_MACOSX_UI_SHADERS
-libmacosx_plugin_la_LDFLAGS += -Wl,-framework,Metal \
-	-Wl,-framework,MetalKit
 endif
 
 if HAVE_SPARKLE

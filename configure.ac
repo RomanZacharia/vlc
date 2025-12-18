@@ -4430,8 +4430,12 @@ then
 
   AS_IF([test "${METAL}" = "no"], [
     AC_PATH_PROG(METAL, [metal], [no])
+    AS_IF([test "${METAL}" = "no" -a "${enable_macosx_ui_shaders}" != "no"], [
+      AC_MSG_ERROR([metal was not found, but is required for --enable-macosx-ui-shaders])
+    ])
     AS_IF([test "${METAL}" = "no"], [
-      AC_MSG_ERROR([metal was not found, but is required for --enable-macosx])
+      AC_MSG_WARN([metal was not found, macOS UI shaders will be disabled])
+      enable_macosx_ui_shaders="no"
     ])
   ])
 
@@ -4449,8 +4453,12 @@ then
 
   AS_IF([test "${METALLIB}" = "no"], [
     AC_PATH_PROG(METALLIB, [metallib], [no])
+    AS_IF([test "${METALLIB}" = "no" -a "${enable_macosx_ui_shaders}" != "no"], [
+      AC_MSG_ERROR([metallib was not found, but is required for --enable-macosx-ui-shaders])
+    ])
     AS_IF([test "${METALLIB}" = "no"], [
-      AC_MSG_ERROR([metallib was not found, but is required for --enable-macosx])
+      AC_MSG_WARN([metallib was not found, macOS UI shaders will be disabled])
+      enable_macosx_ui_shaders="no"
     ])
   ])
 

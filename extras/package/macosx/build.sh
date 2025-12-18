@@ -11,7 +11,8 @@ info()
 SCRIPTDIR=$(dirname "$0")
 source "$SCRIPTDIR/env.build.sh" "none"
 
-SDKROOT=$(xcrun --show-sdk-path)
+# Try to use macOS 14.5 SDK for better compatibility, fallback to default
+SDKROOT=$(xcrun --sdk macosx14.5 --show-sdk-path 2>/dev/null || xcrun --show-sdk-path)
 VLCBUILDDIR=""
 
 CORE_COUNT=`getconf NPROCESSORS_ONLN 2>&1`
@@ -186,12 +187,21 @@ case $LICENSE in
     ;;
 esac
 
+# Disable disc support to avoid Java dependency issues
+CONTRIBFLAGS="$CONTRIBFLAGS --disable-disc"
+# Disable breakpad and sparkle as they require full Xcode (xcodebuild)
+CONTRIBFLAGS="$CONTRIBFLAGS --disable-breakpad --disable-sparkle"
+
 if [ "$REBUILD" = "yes" ]; then
     rm -rf contrib-$HOST_TRIPLET
     rm -rf $HOST_TRIPLET
 fi
 mkdir -p contrib-$HOST_TRIPLET && cd contrib-$HOST_TRIPLET
-../bootstrap --build=$BUILD_TRIPLET --host=$HOST_TRIPLET $CONTRIBFLAGS > $out
+# For native builds, BUILD and HOST should be the same to avoid cross-compilation setup
+# Convert aarch64 to arm64 for consistency
+NATIVE_BUILD=$(echo "$BUILD_TRIPLET" | sed 's/aarch64/arm64/')
+NATIVE_HOST=$(echo "$HOST_TRIPLET" | sed 's/aarch64/arm64/')
+../bootstrap --build=$NATIVE_BUILD --host=$NATIVE_HOST $CONTRIBFLAGS > $out
 
 make list
 if [ "$CONTRIBFROMSOURCE" != "yes" ]; then
