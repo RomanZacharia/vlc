@@ -133,8 +133,9 @@ fi
 
 ACTUAL_ARCH=`get_actual_arch $ARCH`
 BUILD_ARCH=`get_buildsystem_arch $BUILD_ARCH`
+HOST_BUILD_ARCH=`get_buildsystem_arch $ARCH`
 BUILD_TRIPLET=$BUILD_ARCH-apple-darwin$OSX_KERNELVERSION
-HOST_TRIPLET=$ARCH-apple-darwin$OSX_KERNELVERSION
+HOST_TRIPLET=$HOST_BUILD_ARCH-apple-darwin$OSX_KERNELVERSION
 
 info "Building VLC for macOS for architecture ${ACTUAL_ARCH} on a ${BUILD_ARCH} device"
 
@@ -250,7 +251,7 @@ export XCODE_FLAGS="MACOSX_DEPLOYMENT_TARGET=$MINIMAL_OSX_VERSION -sdk macosx WA
 info "Building contribs"
 spushd "${vlcroot}/contrib"
 mkdir -p contrib-$HOST_TRIPLET && cd contrib-$HOST_TRIPLET
-../bootstrap --build=$BUILD_TRIPLET --host=$HOST_TRIPLET > $out
+../bootstrap --build=$BUILD_TRIPLET --host=$HOST_TRIPLET --disable-disc > $out
 if [ "$REBUILD" = "yes" ]; then
     make clean
 fi

@@ -11,7 +11,7 @@ OPTIONS="
         --enable-faad
         --enable-flac
         --enable-theora
-        --enable-shout
+        --disable-shout
         --enable-ncurses
         --enable-twolame
         --enable-realrtsp
@@ -23,6 +23,9 @@ OPTIONS="
         --disable-pulse
         --disable-sdl-image
         --disable-vnc
+        --disable-chromecast
+        --disable-lua
+        --disable-archive
         --with-macosx-version-min=10.7
 "
 
