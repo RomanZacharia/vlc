@@ -410,13 +410,24 @@ static const char *const myFoldersDescription = "My Folders";
                                         withUrl:(NSURL *)directoryUrl
 {
     NSParameterAssert(directoryNode != NULL && directoryUrl != nil);
+    
+    // Safety check: ensure directoryNode is valid before proceeding
+    if (directoryNode == NULL || directoryNode->pp_children == NULL) {
+        return [NSError errorWithDomain:NSCocoaErrorDomain
+                                    code:NSFileReadCorruptFileError
+                                userInfo:@{NSLocalizedDescriptionKey: @"Invalid directory node"}];
+    }
+    
     if (self.willStartGeneratingChildNodesForNodeHandler) {
         self.willStartGeneratingChildNodesForNodeHandler(directoryNode);
     }
 
     // Clear pre-existing child nodes
-    while (directoryNode->i_children > 0) {
+    while (directoryNode->i_children > 0 && directoryNode->pp_children != NULL) {
         input_item_node_t * const childNode = directoryNode->pp_children[0];
+        if (childNode == NULL) {
+            break;
+        }
         input_item_node_RemoveNode(directoryNode, childNode);
         input_item_node_Delete(childNode);
     }
