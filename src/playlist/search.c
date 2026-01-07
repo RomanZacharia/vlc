@@ -24,6 +24,7 @@
 # include "config.h"
 #endif
 #include <assert.h>
+#include <string.h>
 
 #include <vlc_common.h>
 #include <vlc_playlist.h>
@@ -55,9 +56,73 @@ static void playlist_LiveSearchClean( playlist_item_t *p_root )
 
 
 /**
+ * Check if any word in the search string matches the item
+ * @param p_item: the playlist item to check
+ * @param psz_search: the search string (may contain multiple words separated by spaces)
+ * @return true if any word matches
+ */
+static bool playlist_ItemMatchesSearch( playlist_item_t *p_item, const char *psz_search )
+{
+    char *psz_search_copy = strdup( psz_search );
+    if( !psz_search_copy )
+        return false;
+
+    bool b_match = false;
+    vlc_mutex_lock( &p_item->p_input->lock );
+
+    // Get searchable text fields
+    const char *psz_title = NULL;
+    const char *psz_album = NULL;
+    const char *psz_artist = NULL;
+    const char *psz_name = p_item->p_input->psz_name;
+
+    if( p_item->p_input->p_meta )
+    {
+        psz_title = vlc_meta_Get( p_item->p_input->p_meta, vlc_meta_Title );
+        if( !psz_title )
+            psz_title = psz_name;
+        psz_album = vlc_meta_Get( p_item->p_input->p_meta, vlc_meta_Album );
+        psz_artist = vlc_meta_Get( p_item->p_input->p_meta, vlc_meta_Artist );
+    }
+    else
+    {
+        psz_title = psz_name;
+    }
+
+    // Split search string by spaces and check if ANY word matches (OR logic)
+    char *psz_token = psz_search_copy;
+    char *psz_saveptr = NULL;
+
+    while( !b_match && ( psz_token = strtok_r( psz_token, " \t\n\r", &psz_saveptr ) ) != NULL )
+    {
+        // Skip empty tokens
+        if( *psz_token == '\0' )
+        {
+            psz_token = NULL;
+            continue;
+        }
+
+        // Check if this word matches any field
+        if( ( psz_title && vlc_strcasestr( psz_title, psz_token ) ) ||
+            ( psz_album && vlc_strcasestr( psz_album, psz_token ) ) ||
+            ( psz_artist && vlc_strcasestr( psz_artist, psz_token ) ) ||
+            ( psz_name && vlc_strcasestr( psz_name, psz_token ) ) )
+        {
+            b_match = true;
+        }
+
+        psz_token = NULL; // Continue with next token
+    }
+
+    vlc_mutex_unlock( &p_item->p_input->lock );
+    free( psz_search_copy );
+    return b_match;
+}
+
+/**
  * Enable/Disable items in the playlist according to the search argument
  * @param p_root: the current root item
- * @param psz_string: the string to search
+ * @param psz_string: the string to search (may contain multiple words separated by spaces)
  * @return true if an item match
  */
 static bool playlist_LiveSearchUpdateInternal( playlist_item_t *p_root,
@@ -78,23 +143,7 @@ static bool playlist_LiveSearchUpdateInternal( playlist_item_t *p_root,
 
         if( !b_enable )
         {
-            vlc_mutex_lock( &p_item->p_input->lock );
-            // Do we have some meta ?
-            if( p_item->p_input->p_meta )
-            {
-                // Use Title or fall back to psz_name
-                const char *psz_title = vlc_meta_Get( p_item->p_input->p_meta, vlc_meta_Title );
-                if( !psz_title )
-                    psz_title = p_item->p_input->psz_name;
-                const char *psz_album = vlc_meta_Get( p_item->p_input->p_meta, vlc_meta_Album );
-                const char *psz_artist = vlc_meta_Get( p_item->p_input->p_meta, vlc_meta_Artist );
-                b_enable = ( psz_title && vlc_strcasestr( psz_title, psz_string ) ) ||
-                           ( psz_album && vlc_strcasestr( psz_album, psz_string ) ) ||
-                           ( psz_artist && vlc_strcasestr( psz_artist, psz_string ) );
-            }
-            else
-                b_enable = p_item->p_input->psz_name && vlc_strcasestr( p_item->p_input->psz_name, psz_string );
-            vlc_mutex_unlock( &p_item->p_input->lock );
+            b_enable = playlist_ItemMatchesSearch( p_item, psz_string );
         }
 
         if( b_enable )
