@@ -40,6 +40,7 @@
 #import <QuartzCore/QuartzCore.h>
 
 #import <vlc_actions.h>
+#import <vlc_input.h>
 
 
 /*****************************************************************************
@@ -177,6 +178,34 @@
             /* handle Lion's default key combo for fullscreen-toggle in addition to our own hotkeys */
             else if (key == 'f' && i_pressed_modifiers & NSControlKeyMask && i_pressed_modifiers & NSCommandKeyMask)
                 [[VLCCoreInteraction sharedInstance] toggleFullscreen];
+            /* Numeric keys (0-9) for percentage-based seeking */
+            else if (key >= '0' && key <= '9' && !(i_pressed_modifiers & (NSCommandKeyMask | NSControlKeyMask | NSAlternateKeyMask))) {
+                input_thread_t * p_input = pl_CurrentInput(getIntf());
+                if (p_input) {
+                    bool b_seekable = var_GetBool(p_input, "can-seek");
+                    if (b_seekable) {
+                        input_item_t * p_item = input_GetItem(p_input);
+                        if (p_item) {
+                            vlc_tick_t duration = input_item_GetDuration(p_item);
+                            if (duration > 0) {
+                                int digit = key - '0';
+                                float percentage = 0.0;
+                                
+                                if (digit == 0) {
+                                    percentage = 0.0;  /* 0% - beginning */
+                                } else {
+                                    percentage = digit * 0.1;  /* 10%, 20%, ..., 90% */
+                                }
+                                
+                                vlc_tick_t target_time = (vlc_tick_t)(duration * percentage);
+                                [[VLCCoreInteraction sharedInstance] seekToTime:target_time];
+                            }
+                        }
+                    }
+                    vlc_object_release(p_input);
+                }
+                return;
+            }
             else if (p_vout) {
                 val.i_int |= (int)CocoaKeyToVLC(key);
                 var_Set(p_vout->obj.libvlc, "key-pressed", val);
