@@ -38,6 +38,7 @@
 #import "VLCMainMenu.h"
 
 #import <QuartzCore/QuartzCore.h>
+#import <CoreGraphics/CoreGraphics.h>
 
 #import <vlc_actions.h>
 #import <vlc_input.h>
@@ -178,6 +179,45 @@
             /* handle Lion's default key combo for fullscreen-toggle in addition to our own hotkeys */
             else if (key == 'f' && i_pressed_modifiers & NSControlKeyMask && i_pressed_modifiers & NSCommandKeyMask)
                 [[VLCCoreInteraction sharedInstance] toggleFullscreen];
+            /* Right Option + Arrow keys for 1-minute seek */
+            else if (i_pressed_modifiers & NSAlternateKeyMask && !(i_pressed_modifiers & (NSCommandKeyMask | NSControlKeyMask))) {
+                /* Check if this is an arrow key */
+                if (key == NSRightArrowFunctionKey || key == NSLeftArrowFunctionKey) {
+                    /* Check if Right Option key is currently pressed */
+                    /* Right Option key has keyCode 61 (0x3D) */
+                    BOOL isRightOption = CGEventSourceKeyState(kCGEventSourceStateHIDSystemState, 61);
+                    
+                    if (isRightOption) {
+                        if (key == NSRightArrowFunctionKey) {
+                            /* Right Option + Right Arrow: seek 1 minute forward */
+                            input_thread_t * p_input = pl_CurrentInput(getIntf());
+                            if (p_input) {
+                                bool b_seekable = var_GetBool(p_input, "can-seek");
+                                if (b_seekable) {
+                                    /* Seek 1 minute (60 seconds) forward */
+                                    vlc_tick_t one_minute = 60 * CLOCK_FREQ;
+                                    var_SetInteger(p_input, "time-offset", one_minute);
+                                }
+                                vlc_object_release(p_input);
+                            }
+                            return;
+                        } else if (key == NSLeftArrowFunctionKey) {
+                            /* Right Option + Left Arrow: seek 1 minute backward */
+                            input_thread_t * p_input = pl_CurrentInput(getIntf());
+                            if (p_input) {
+                                bool b_seekable = var_GetBool(p_input, "can-seek");
+                                if (b_seekable) {
+                                    /* Seek 1 minute (60 seconds) backward */
+                                    vlc_tick_t one_minute = -60 * CLOCK_FREQ;
+                                    var_SetInteger(p_input, "time-offset", one_minute);
+                                }
+                                vlc_object_release(p_input);
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
             /* Numeric keys (0-9) for percentage-based seeking */
             else if (key >= '0' && key <= '9' && !(i_pressed_modifiers & (NSCommandKeyMask | NSControlKeyMask | NSAlternateKeyMask))) {
                 input_thread_t * p_input = pl_CurrentInput(getIntf());
