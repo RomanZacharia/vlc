@@ -41,6 +41,7 @@
 #include <vlc_input_item.h>
 #include <vlc_input.h>
 #include <vlc_url.h>
+#include <vlc_stream.h>
 
 @interface VLCPLModel ()
 {
@@ -53,6 +54,7 @@
 - (void)VLCPLItemAppended:(NSArray *)valueArray;
 - (void)VLCPLItemRemoved:(NSNumber *)value;
 - (void)VLCPLItemUpdated;
+- (void)updateFileSizeForCurrentInput;
 
 @end
 
@@ -68,6 +70,21 @@ static int VLCPLItemUpdated(vlc_object_t *p_this, const char *psz_var,
         return VLC_SUCCESS;
     }
 }
+
+static int InputStateChanged(vlc_object_t *p_this, const char *psz_var,
+                             vlc_value_t oldval, vlc_value_t new_val, void *param)
+{
+    @autoreleasepool {
+        VLCPLModel *model = (__bridge VLCPLModel*)param;
+        // Update file size when input changes (new input starts)
+        // Delay slightly to ensure stream is fully opened and info is populated
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [model updateFileSizeForCurrentInput];
+        });
+        return VLC_SUCCESS;
+    }
+}
+
 
 static int VLCPLItemAppended(vlc_object_t *p_this, const char *psz_var,
                           vlc_value_t oldval, vlc_value_t new_val, void *param)
@@ -142,6 +159,7 @@ static int VolumeUpdated(vlc_object_t *p_this, const char *psz_var,
         var_AddCallback(p_playlist, "loop", PlaybackModeUpdated, (__bridge void *)self);
         var_AddCallback(p_playlist, "volume", VolumeUpdated, (__bridge void *)self);
         var_AddCallback(p_playlist, "mute", VolumeUpdated, (__bridge void *)self);
+        var_AddCallback(p_playlist, "input-current", InputStateChanged, (__bridge void *)self);
 
         PL_LOCK;
         _rootItem = [[VLCPLItem alloc] initWithPlaylistItem:root];
@@ -163,6 +181,7 @@ static int VolumeUpdated(vlc_object_t *p_this, const char *psz_var,
     var_DelCallback(p_playlist, "loop", PlaybackModeUpdated, (__bridge void *)self);
     var_DelCallback(p_playlist, "volume", VolumeUpdated, (__bridge void *)self);
     var_DelCallback(p_playlist, "mute", VolumeUpdated, (__bridge void *)self);
+    var_DelCallback(p_playlist, "input-current", InputStateChanged, (__bridge void *)self);
 }
 
 - (void)changeRootItem:(playlist_item_t *)p_root;
@@ -314,6 +333,56 @@ static int VolumeUpdated(vlc_object_t *p_this, const char *psz_var,
     [[instance mainWindow] updateName];
 
     [[instance currentMediaInfoPanel] updateMetadata];
+    
+    // Refresh the outline view to update file sizes and other metadata
+    if (_outlineView) {
+        [_outlineView reloadData];
+    }
+}
+
+- (void)updateFileSizeForCurrentInput
+{
+    PL_LOCK;
+    input_thread_t *p_input = playlist_CurrentInputLocked(p_playlist);
+    if (!p_input) {
+        PL_UNLOCK;
+        return;
+    }
+    
+    input_item_t *p_item = input_GetItem(p_input);
+    if (!p_item) {
+        PL_UNLOCK;
+        return;
+    }
+    
+    // Get the playlist item for this input
+    playlist_item_t *p_pl_item = playlist_ItemGetByInput(p_playlist, p_item);
+    if (!p_pl_item) {
+        PL_UNLOCK;
+        return;
+    }
+    
+    int i_pl_id = p_pl_item->i_id;
+    PL_UNLOCK;
+    
+    // Update the view on main thread - the file size will be read from input item info
+    // which gets populated when the stream is opened
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // Find the item and update its display
+        VLCPLItem *item = [self findItemByPlaylistId:i_pl_id];
+        if (item && _outlineView) {
+            // Reload the specific row to update file size
+            NSInteger row = [_outlineView rowForItem:item];
+            if (row >= 0) {
+                NSIndexSet *columnIndexes = [NSIndexSet indexSetWithIndex:[_outlineView columnWithIdentifier:FILESIZE_COLUMN]];
+                NSIndexSet *rowIndexes = [NSIndexSet indexSetWithIndex:row];
+                [_outlineView reloadDataForRowIndexes:rowIndexes columnIndexes:columnIndexes];
+            } else {
+                // If row not found, reload entire view (item might be collapsed)
+                [_outlineView reloadData];
+            }
+        }
+    });
 }
 
 - (void)addItem:(int)i_item withParentNode:(int)i_node
@@ -573,24 +642,61 @@ static int VolumeUpdated(vlc_object_t *p_this, const char *psz_var,
         free(psz_value);
 
     } else if ([o_identifier isEqualToString:FILESIZE_COLUMN]) {
+        // First, try to get size from input item info (populated when stream opens)
+        char *psz_size = input_item_GetInfo(p_input, "general", "size");
+        if (psz_size && strlen(psz_size) > 0) {
+            // Try to parse as number
+            uint64_t i_size = 0;
+            if (sscanf(psz_size, "%" PRIu64, &i_size) == 1 && i_size > 0) {
+                free(psz_size);
+                o_value = [VLCByteCountFormatter stringFromByteCount:i_size countStyle:NSByteCountFormatterCountStyleDecimal];
+                return o_value;
+            }
+            free(psz_size);
+        }
+        
+        
+        // Fall back to file system for local files (non-blocking, only if file exists)
         psz_value = input_item_GetURI(p_input);
         if (!psz_value)
             return @"";
-        NSURL *url = [NSURL URLWithString:toNSStr(psz_value)];
+        
+        // Convert URI to file path using VLC's URI conversion
+        char *psz_path = vlc_uri2path(psz_value);
         free(psz_value);
-        if (![url isFileURL])
+        
+        if (!psz_path)
+            return @"";
+        
+        NSString *path = toNSStr(psz_path);
+        free(psz_path);
+        
+        if (!path || [path length] == 0)
+            return @"";
+        
+        NSURL *url = [NSURL fileURLWithPath:path];
+        if (!url)
             return @"";
 
-        NSFileManager *fileManager = [NSFileManager defaultManager];
-        BOOL b_isDir;
-        if (![fileManager fileExistsAtPath:[url path] isDirectory:&b_isDir] || b_isDir)
-            return @"";
-
-        NSDictionary *attributes = [fileManager attributesOfItemAtPath:[url path] error:nil];
-        if (!attributes)
-            return @"";
-
-        o_value = [VLCByteCountFormatter stringFromByteCount:[attributes fileSize] countStyle:NSByteCountFormatterCountStyleDecimal];
+        // Use modern NSURL resource value API (preferred method)
+        NSNumber *fileSize = nil;
+        NSError *error = nil;
+        if ([url getResourceValue:&fileSize forKey:NSURLFileSizeKey error:&error] && fileSize && [fileSize longLongValue] > 0) {
+            o_value = [VLCByteCountFormatter stringFromByteCount:[fileSize longLongValue] countStyle:NSByteCountFormatterCountStyleDecimal];
+        } else {
+            // Fall back to file manager for compatibility with older systems
+            NSFileManager *fileManager = [NSFileManager defaultManager];
+            BOOL b_isDir;
+            if ([fileManager fileExistsAtPath:path isDirectory:&b_isDir] && !b_isDir) {
+                NSDictionary *attributes = [fileManager attributesOfItemAtPath:path error:nil];
+                if (attributes) {
+                    NSNumber *size = [attributes objectForKey:NSFileSize];
+                    if (size && [size longLongValue] > 0) {
+                        o_value = [VLCByteCountFormatter stringFromByteCount:[size longLongValue] countStyle:NSByteCountFormatterCountStyleDecimal];
+                    }
+                }
+            }
+        }
 
     } else if ([o_identifier isEqualToString:FILEMODIFIED_COLUMN]) {
         psz_value = input_item_GetURI(p_input);

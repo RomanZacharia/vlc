@@ -600,8 +600,8 @@ dnl Check for broken versions of mingw-runtime compatability library
         AC_MSG_ERROR([LibVLC requires mingw-runtime version 3.15 or higher, or mingw-w64 version 3.0 or higher!])
     ])
 
-    dnl force use of mingw provided c99 *printf over msvcrt
-    CPPFLAGS="${CPPFLAGS} -D__USE_MINGW_ANSI_STDIO=1"
+        dnl force use of mingw provided c99 *printf over msvcrt
+        CPPFLAGS="${CPPFLAGS} -D__USE_MINGW_ANSI_STDIO=1"
 
     dnl Check for the need to include the mingwex lib for mingw32
     VLC_SAVE_FLAGS
@@ -853,17 +853,17 @@ AS_IF([test "${SYS}" != "mingw32"], [
 ])
 AC_SUBST(LIBPTHREAD)
 
-AC_SEARCH_LIBS([clock_nanosleep], [rt pthread], [
-  AS_IF([test "$ac_cv_search_clock_nanosleep" != "none required"], [
-    LIBRT="$ac_cv_search_clock_nanosleep"
-  ])
-], [
-  AC_SEARCH_LIBS([nanosleep], [rt pthread posix4], [
-    AS_IF([test "$ac_cv_search_nanosleep" != "none required"], [
-      LIBRT="$ac_cv_search_nanosleep"
+  AC_SEARCH_LIBS([clock_nanosleep], [rt pthread], [
+    AS_IF([test "$ac_cv_search_clock_nanosleep" != "none required"], [
+      LIBRT="$ac_cv_search_clock_nanosleep"
+    ])
+  ], [
+    AC_SEARCH_LIBS([nanosleep], [rt pthread posix4], [
+      AS_IF([test "$ac_cv_search_nanosleep" != "none required"], [
+        LIBRT="$ac_cv_search_nanosleep"
+      ])
     ])
   ])
-])
 AC_SUBST(LIBRT)
 
 dnl
@@ -945,7 +945,7 @@ then
       MINIZIP_LIBS="-lminizip -lz"
     ], [
       have_minizip=no
-    ])
+])
   ])
 fi
 AM_CONDITIONAL(HAVE_MINIZIP, [ test "${have_minizip}" = "yes" ])
@@ -1045,7 +1045,7 @@ AC_LINK_IFELSE([
         #include <sys/socket.h>
         #include <net/if.h>
         #endif], [
-        if_nametoindex("");
+          if_nametoindex("");
     ])],[AC_DEFINE([HAVE_IF_NAMETOINDEX],[1],[Define to 1 if you have if_nametoindex function])])
 AC_CHECK_TYPES([struct if_nameindex],,,[#include <net/if.h>])
 AC_CHECK_FUNCS([if_nameindex])
@@ -1585,24 +1585,24 @@ asm volatile("insertq %%xmm1,%%xmm0"::"r"(p):"xmm0", "xmm1");
   VLC_RESTORE_FLAGS
   AS_IF([test "${ac_cv_sse4a_inline}" != "no"], [
     AC_DEFINE(CAN_COMPILE_SSE4A, 1, [Define to 1 if SSE4A inline assembly is available.]) ])
-])
+  ])
 AM_CONDITIONAL([HAVE_SSE2], [test "$have_sse2" = "yes"])
 
 VLC_SAVE_FLAGS
 CFLAGS="${CFLAGS} -mmmx"
 have_3dnow="no"
 AC_CACHE_CHECK([if $CC groks 3D Now! inline assembly], [ac_cv_3dnow_inline], [
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(,[[
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(,[[
 void *p;
 asm volatile("pfadd %%mm1,%%mm2"::"r"(p):"mm1", "mm2");
 ]])
-  ], [
+    ], [
     ac_cv_3dnow_inline=yes
-  ], [
+    ], [
     ac_cv_3dnow_inline=no
+    ])
   ])
-])
-VLC_RESTORE_FLAGS
+  VLC_RESTORE_FLAGS
 AS_IF([test "${ac_cv_3dnow_inline}" != "no"], [
   AC_DEFINE(CAN_COMPILE_3DNOW, 1,
             [Define to 1 if 3D Now! inline assembly is available.])
@@ -1618,16 +1618,16 @@ AC_ARG_ENABLE(neon,
 ])
 AS_IF([test "${enable_neon}" != "no"], [
   VLC_SAVE_FLAGS
-  CFLAGS="${CFLAGS} -mfpu=neon -mhard-float"
+      CFLAGS="${CFLAGS} -mfpu=neon -mhard-float"
   AC_CACHE_CHECK([if $CCAS groks ARM NEON assembly], [ac_cv_arm_neon], [
-    AC_COMPILE_IFELSE([
-      AC_LANG_PROGRAM(,[[
+      AC_COMPILE_IFELSE([
+        AC_LANG_PROGRAM(,[[
 asm volatile("vqmovun.s64 d0, q1":::"d0");
 ]])
-    ], [
+      ], [
       ac_cv_arm_neon="yes"
-    ], [
-      ac_cv_arm_neon="no"
+      ], [
+        ac_cv_arm_neon="no"
     ])
   ])
   VLC_RESTORE_FLAGS
@@ -1760,11 +1760,11 @@ then
     PKG_CHECK_MODULES(LUA, lua5.1,
       [ have_lua=yes ],
       [
-      AC_MSG_WARN([${LUA_PKG_ERRORS}, trying lua >= 5.1 instead])
+    AC_MSG_WARN([${LUA_PKG_ERRORS}, trying lua >= 5.1 instead])
       PKG_CHECK_MODULES(LUA, lua >= 5.1,
         [ have_lua=yes ],
         [
-          AC_MSG_WARN([${LUA_PKG_ERRORS}, trying manual detection instead])
+     AC_MSG_WARN([${LUA_PKG_ERRORS}, trying manual detection instead])
           have_lua=yes
           AC_CHECK_HEADERS([lua.h lauxlib.h lualib.h],
             [],
@@ -1775,14 +1775,14 @@ then
             [LUA_LIBS="-llua5.1"],
             AC_CHECK_LIB( lua51 , luaL_newstate,
               [LUA_LIBS="-llua51"],
-              AC_CHECK_LIB( lua , luaL_newstate,
+       AC_CHECK_LIB( lua , luaL_newstate,
                 [LUA_LIBS="-llua"],
                 [ have_lua=no
                 ], [-lm])
             )))
         ])
       ])
-    ])
+  ])
   if test "x${have_lua}" != "xyes" ;  then
       AC_MSG_ERROR([Could not find lua. Lua is needed for some interfaces (rc, telnet, http) as well as many other custom scripts. Use --disable-lua to ignore this error.])
   fi
@@ -2084,7 +2084,7 @@ then
       have_decklink=yes
   ], [
       AC_MSG_WARN(Blackmagic DeckLink SDI include files not found, decklink disabled)
-  ])
+      ])
   AC_LANG_POP(C++)
   VLC_RESTORE_FLAGS
 fi
@@ -2318,8 +2318,8 @@ AC_ARG_ENABLE(mpc,
   [AS_HELP_STRING([--disable-mpc], [do not use libmpcdec (default auto)])])
 if test "${enable_mpc}" != "no"
 then
-  AC_CHECK_HEADERS([mpc/mpcdec.h], [
-    VLC_ADD_PLUGIN([mpc])
+    AC_CHECK_HEADERS([mpc/mpcdec.h], [
+        VLC_ADD_PLUGIN([mpc])
     VLC_ADD_LIBS([mpc],[-lmpcdec])],
     [AC_CHECK_HEADERS([mpcdec/mpcdec.h], [
     VLC_ADD_PLUGIN([mpc])
@@ -2578,8 +2578,8 @@ AS_IF([test "${enable_dxva2}" != "no"], [
     AC_CHECK_HEADERS(dxva2api.h,
       [
         AC_CHECK_HEADERS(libavcodec/dxva2.h, [
-           AC_MSG_NOTICE([DxVA2 acceleration activated])
-           have_avcodec_dxva2="yes"
+            AC_MSG_NOTICE([DxVA2 acceleration activated])
+            have_avcodec_dxva2="yes"
         ],[
     AS_IF([test "${enable_dxva2}" = "yes"],
           [AC_MSG_ERROR([dxva2 is present but libavcodec/dxva2.h is missing])],
@@ -2592,11 +2592,11 @@ AS_IF([test "${enable_dxva2}" != "no"], [
               [AC_MSG_ERROR([Could not find required dxva2api.h])],
               [AC_MSG_WARN([dxva2api.h not found])])
       ],[#include <d3d9.h>])
-  ],[
-    AS_IF([test "x${enable_dxva2}" != "x"], [
-      AC_MSG_ERROR([--enable-dxva2 and --disable-avcodec options are mutually exclusive.])
+    ],[
+        AS_IF([test "x${enable_dxva2}" != "x"], [
+            AC_MSG_ERROR([--enable-dxva2 and --disable-avcodec options are mutually exclusive.])
+        ])
     ])
-  ])
   fi
 ])
 AM_CONDITIONAL([HAVE_AVCODEC_DXVA2], [test "${have_avcodec_dxva2}" = "yes"])
@@ -2616,10 +2616,10 @@ AS_IF([test "${enable_d3d11va}" != "no"], [
             AC_CHECK_HEADERS(dxva2api.h,
               [
                 AC_CHECK_HEADERS(libavcodec/d3d11va.h, [
-                   AC_MSG_NOTICE([D3D11 acceleration activated])
+            AC_MSG_NOTICE([D3D11 acceleration activated])
                    AC_DEFINE(HAVE_AVCODEC_D3D11VA, 1, [Define if the d3d11va module is built])
-                   have_avcodec_d3d11va="yes"
-                ],[
+            have_avcodec_d3d11va="yes"
+        ],[
                   AS_IF([test "${enable_d3d11va}" = "yes"],
                     [AC_MSG_ERROR([d3d11va is present but libavcodec/d3d11va.h is missing])],
                         [AC_MSG_WARN([d3d11va is present but libavcodec/d3d11va.h is missing ])])
@@ -2636,11 +2636,11 @@ AS_IF([test "${enable_d3d11va}" != "no"], [
                   [AC_MSG_ERROR([Could not find required ID3D11VideoDecoder in d3d11.h])],
                   [AC_MSG_WARN([ID3D11VideoDecoder not found])])
           ], [#include <d3d11.h>])
-  ],[
-    AS_IF([test "x${enable_d3d11va}" != "x"], [
-      AC_MSG_ERROR([--enable-d3d11va and --disable-avcodec options are mutually exclusive.])
+    ],[
+        AS_IF([test "x${enable_d3d11va}" != "x"], [
+          AC_MSG_ERROR([--enable-d3d11va and --disable-avcodec options are mutually exclusive.])
+        ])
     ])
-  ])
   fi
 ])
 AM_CONDITIONAL([HAVE_AVCODEC_D3D11VA], [test "${have_avcodec_d3d11va}" = "yes"])
@@ -2734,12 +2734,12 @@ AC_ARG_ENABLE(faad,
 [  --enable-faad           faad codec (default auto)])
 have_faad="no"
 AS_IF([test "${enable_faad}" != "no"], [
-  AC_CHECK_HEADERS([neaacdec.h], [
+    AC_CHECK_HEADERS([neaacdec.h], [
     AC_CHECK_LIB(faad, NeAACDecOpen, [have_faad="yes"],, [$LIBM])
 
     AS_IF([test "${have_faad}" = "yes"], [
-      VLC_ADD_PLUGIN([faad])
-      VLC_ADD_LIBS([faad],[-lfaad])
+                      VLC_ADD_PLUGIN([faad])
+                      VLC_ADD_LIBS([faad],[-lfaad])
     ], [
       AS_IF([test "${enable_faad}" = "yes"], [
         AC_MSG_ERROR([cannot find FAAD library])
@@ -2932,7 +2932,7 @@ AC_ARG_ENABLE(jpeg,
   [  --enable-jpeg           JPEG support (default enabled)])
 AS_IF([test "${enable_jpeg}" != "no"], [
 AC_CHECK_HEADERS(jpeglib.h, [
-  VLC_ADD_PLUGIN([jpeg])
+      VLC_ADD_PLUGIN([jpeg])
   ])
 ])
 
@@ -3149,9 +3149,9 @@ PKG_CHECK_MODULES([GL], [gl], [
     [int t0 = GL_TEXTURE0;]])
   ], [
     GL_CFLAGS=""
-    have_gl="yes"
+        have_gl="yes"
     AS_IF([test "${SYS}" != "mingw32"], [
-      GL_LIBS="-lGL"
+        GL_LIBS="-lGL"
     ], [
       GL_LIBS="-lopengl32"
     ])
@@ -3245,8 +3245,8 @@ AS_IF([test "${have_vdpau}" = "yes" -a "${have_avcodec}" = "yes"], [
     ffmpeg) av_vdpau_ver="56.19.100" ;;
   esac
   PKG_CHECK_EXISTS([libavcodec >= ${av_vdpau_ver}], [
-    have_avcodec_vdpau="yes"
-    AC_MSG_NOTICE([VDPAU decoding acceleration activated])
+  have_avcodec_vdpau="yes"
+  AC_MSG_NOTICE([VDPAU decoding acceleration activated])
   ], [
     AS_IF([test -n "${enable_vdpau}"], [
       AC_MSG_ERROR([libavcodec >= 56.10.0 is required for VDPAU decoding.])
@@ -3284,22 +3284,22 @@ AS_IF([test "${enable_wayland}" = "yes"], [
     ], [
       AC_MSG_RESULT([not found])
       AC_MSG_ERROR([$(${PKG_CONFIG} --print-errors wayland-scanner)])
-    ])
+  ])
 
     have_wayland="yes"
 
     AS_IF([test "${have_egl}" = "yes"], [
       PKG_CHECK_MODULES([WAYLAND_EGL], [wayland-egl], [
         have_wayland_egl="yes"
-      ], [
+  ], [
         AC_MSG_ERROR([${WAYLAND_EGL_PKG_ERRORS}.])
-      ])
+  ])
     ])
   ], [
     AS_IF([test -n "${enable_wayland}"], [
       AC_MSG_ERROR([${WAYLAND_CLIENT_PKG_ERRORS}.])
-    ])
   ])
+])
 ])
 AC_SUBST([WAYLAND_PROTOCOLS])
 AC_SUBST([WAYLAND_SCANNER])
@@ -3473,7 +3473,7 @@ AS_IF([test "${enable_directx}" != "no"], [
   dnl Direct3D11
   AC_CHECK_HEADERS(d3d11.h, [
     AC_CHECK_TYPES([D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS],,,[#include <d3d11.h>])
-    VLC_ADD_PLUGIN([direct3d11 direct3d11_filters])
+  VLC_ADD_PLUGIN([direct3d11 direct3d11_filters])
   ])
 
   dnl Direct3D9
@@ -3564,7 +3564,7 @@ if test "${enable_mmal}" != "no"; then
         VLC_ADD_LDFLAGS([mmal],[ -L/opt/vc/lib ])
         VLC_ADD_CFLAGS([mmal],[ -isystem /opt/vc/include -isystem /opt/vc/include/interface/vcos/pthreads -isystem /opt/vc/include/interface/vmcs_host/linux ])
         VLC_ADD_LIBS([mmal],[ -lbcm_host -lmmal -lmmal_core -lmmal_components -lmmal_util -lvchostif ]) ], [
-          AS_IF([test "${enable_mmal}" = "yes"],
+        AS_IF([test "${enable_mmal}" = "yes"],
             [ AC_MSG_ERROR([Cannot find bcm library...]) ],
             [ AC_MSG_WARN([Cannot find bcm library...]) ])
           ],
@@ -3737,8 +3737,8 @@ AC_ARG_ENABLE(opensles,
 if test "${HAVE_ANDROID}" = "1"; then
   if test "${enable_opensles}" = "yes"; then
       AC_CHECK_HEADERS(SLES/OpenSLES.h,
-        [ VLC_ADD_PLUGIN([opensles_android]) ],
-        [ AC_MSG_ERROR([cannot find OpenSLES headers])] )
+    [ VLC_ADD_PLUGIN([opensles_android]) ],
+    [ AC_MSG_ERROR([cannot find OpenSLES headers])] )
   fi
 fi
 
@@ -4269,7 +4269,7 @@ AC_ARG_ENABLE(osx_notifications,
 AS_IF([test "${enable_osx_notifications}" != "no"], [
   if test -d ${CONTRIB_DIR}/Growl.framework -o -d ${CONTRIB_DIR}/Frameworks/Growl.framework
   then
-      VLC_ADD_PLUGIN([osx_notifications])
+  VLC_ADD_PLUGIN([osx_notifications])
       VLC_ADD_LIBS([osx_notifications], [-Wl,-framework,Growl,-framework,Foundation])
       VLC_ADD_OBJCFLAGS([osx_notifications], [-fobjc-exceptions] )
   else

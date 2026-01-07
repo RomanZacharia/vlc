@@ -269,7 +269,7 @@ if [ ! -e "../$HOST_TRIPLET" ]; then
     if [ -n "$VLC_PREBUILT_CONTRIBS_URL" ]; then
         make prebuilt PREBUILT_URL="$VLC_PREBUILT_CONTRIBS_URL"
         make .luac
-    else
+else
         make prebuilt
         make .luac
     fi
@@ -364,9 +364,9 @@ if [ "$PACKAGETYPE" = "u" ]; then
     find VLC.app/ -type f -name "Growl" -exec strip -x {} \;
     find VLC.app/ -type f -name "Breakpad" -exec strip -x {} \;
 
-if [ "$BUILD_TRIPLET" = "$HOST_TRIPLET" ]; then
-    bin/vlc-cache-gen VLC.app/Contents/MacOS/plugins
-fi
+    if [ "$BUILD_TRIPLET" = "$HOST_TRIPLET" ]; then
+        bin/vlc-cache-gen VLC.app/Contents/MacOS/plugins
+    fi
 
     info "Building VLC release archive"
     make package-macosx-release
