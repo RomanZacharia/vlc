@@ -33,6 +33,15 @@
 #import <CoreAudio/CoreAudio.h>             // AudioDeviceID
 #import <CoreServices/CoreServices.h>
 
+/* Exception-safe wrapper for AudioObjectSetPropertyData */
+OSStatus AudioObjectSetPropertyData_Safe(
+    AudioObjectID inObjectID,
+    const AudioObjectPropertyAddress *inAddress,
+    UInt32 inQualifierDataSize,
+    const void *inQualifierData,
+    UInt32 inDataSize,
+    const void *inData);
+
 #pragma mark -
 #pragma mark local prototypes & module descriptor
 
@@ -243,7 +252,7 @@ AoSetProperty(audio_output_t *p_aout, AudioObjectID id,
               const void *p_data)
 {
     OSStatus err =
-        AudioObjectSetPropertyData(id, p_address, 0, NULL, i_data, p_data);
+        AudioObjectSetPropertyData_Safe(id, p_address, 0, NULL, i_data, p_data);
 
     if (err != noErr)
     {

@@ -105,7 +105,8 @@ aout_LTLIBRARIES += libwaveout_plugin.la
 endif
 
 libauhal_plugin_la_SOURCES = audio_output/auhal.c \
-	audio_output/coreaudio_common.c audio_output/coreaudio_common.h
+	audio_output/coreaudio_common.c audio_output/coreaudio_common.h \
+	audio_output/auhal_exception_wrapper.mm
 libauhal_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(aoutdir)' \
 	-Wl,-framework,CoreAudio,-framework,AudioUnit,-framework,AudioToolbox,-framework,CoreServices
 if HAVE_OSX
