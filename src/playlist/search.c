@@ -56,10 +56,10 @@ static void playlist_LiveSearchClean( playlist_item_t *p_root )
 
 
 /**
- * Check if any word in the search string matches the item
+ * Check if any alternative in the search string matches the item
  * @param p_item: the playlist item to check
- * @param psz_search: the search string (may contain multiple words separated by spaces)
- * @return true if any word matches
+ * @param psz_search: the search string (may contain multiple alternatives separated by |)
+ * @return true if any alternative matches
  */
 static bool playlist_ItemMatchesSearch( playlist_item_t *p_item, const char *psz_search )
 {
@@ -89,11 +89,12 @@ static bool playlist_ItemMatchesSearch( playlist_item_t *p_item, const char *psz
         psz_title = psz_name;
     }
 
-    // Split search string by spaces and check if ANY word matches (OR logic)
+    // Split search string by | and check if ANY alternative matches (OR logic)
+    // Spaces are treated as regular characters
     char *psz_token = psz_search_copy;
     char *psz_saveptr = NULL;
 
-    while( !b_match && ( psz_token = strtok_r( psz_token, " \t\n\r", &psz_saveptr ) ) != NULL )
+    while( !b_match && ( psz_token = strtok_r( psz_token, "|", &psz_saveptr ) ) != NULL )
     {
         // Skip empty tokens
         if( *psz_token == '\0' )
@@ -102,7 +103,7 @@ static bool playlist_ItemMatchesSearch( playlist_item_t *p_item, const char *psz
             continue;
         }
 
-        // Check if this word matches any field
+        // Check if this alternative matches any field
         if( ( psz_title && vlc_strcasestr( psz_title, psz_token ) ) ||
             ( psz_album && vlc_strcasestr( psz_album, psz_token ) ) ||
             ( psz_artist && vlc_strcasestr( psz_artist, psz_token ) ) ||
@@ -122,7 +123,7 @@ static bool playlist_ItemMatchesSearch( playlist_item_t *p_item, const char *psz
 /**
  * Enable/Disable items in the playlist according to the search argument
  * @param p_root: the current root item
- * @param psz_string: the string to search (may contain multiple words separated by spaces)
+ * @param psz_string: the string to search (may contain multiple alternatives separated by |)
  * @return true if an item match
  */
 static bool playlist_LiveSearchUpdateInternal( playlist_item_t *p_root,
